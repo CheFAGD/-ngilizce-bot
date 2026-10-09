@@ -3,19 +3,17 @@ import random
 import sqlite3
 import threading
 from flask import Flask
-import pandas as pd
+from openpyxl import load_workbook
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
-    ContextTypes,
-    MessageHandler,
-    filters
+    ContextTypes
 )
 
-# --- BOT TOKEN (GÜVENLİ ÇEVRE DEĞİŞKENİNDEN ALINIR) ---
-TOKEN = os.environ.get("BOT_TOKEN")
+# --- BOT TOKEN ---
+TOKEN = os.environ.get("BOT_TOKEN", "8899348135:AAH2G6dvKUSaSXuNI0p1PT3_JDCMgjRXaGo")
 
 DB_FILE = "english_bot.db"
 EXCEL_FILE = "translated.xlsx"
@@ -40,7 +38,6 @@ def init_database():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    # Kelimeler tablosu
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS words (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,7 +46,6 @@ def init_database():
         )
     """)
     
-    # Kullanıcı istatistik tablosu
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_stats (
             user_id INTEGER PRIMARY KEY,
@@ -58,22 +54,26 @@ def init_database():
         )
     """)
     
-    # Eğer kelimeler henüz yüklenmediyse Excel'den aktar
     cursor.execute("SELECT COUNT(*) FROM words")
     count = cursor.fetchone()[0]
     
+    # Excel'den kelimeleri yükle
     if count == 0 and os.path.exists(EXCEL_FILE):
         try:
-            df = pd.read_excel(EXCEL_FILE)
-            for _, row in df.iterrows():
-                eng = str(row['English']).strip()
-                tr = str(row['Türkçe']).strip()
-                if eng and tr and eng.lower() != 'the oxford':
-                    cursor.execute("INSERT OR IGNORE INTO words (english, turkish) VALUES (?, ?)", (eng, tr))
+            wb = load_workbook(EXCEL_FILE, read_only=True)
+            sheet = wb.active
+            rows = list(sheet.iter_rows(values_only=True))
+            # İlk satır başlık (English, Türkçe)
+            for row in rows[1:]:
+                if row and len(row) >= 2:
+                    eng = str(row[0]).strip() if row[0] is not None else ""
+                    tr = str(row[1]).strip() if row[1] is not None else ""
+                    if eng and tr and eng.lower() != 'the oxford':
+                        cursor.execute("INSERT OR IGNORE INTO words (english, turkish) VALUES (?, ?)", (eng, tr))
             conn.commit()
-            print("Kelimeler basariyla veritabanina yuklendi.")
+            print("Kelimeler basariyla veritabanina aktarildi.")
         except Exception as e:
-            print(f"Excel aktarim hatasi: {e}")
+            print(f"Excel okuma hatasi: {e}")
             
     conn.close()
 
@@ -132,7 +132,6 @@ async def kelime_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Kelimeler hazırlanıyor veya bulunamadı.")
         return
 
-    # Şıkları buton yap
     keyboard = []
     for opt in options:
         status = "C" if opt == tr else "W"
@@ -194,7 +193,7 @@ async def yardim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not TOKEN:
-        print("HATA: BOT_TOKEN bulunamadi! Render uzerinden eklemeyi unutmayin.")
+        print("HATA: BOT_TOKEN bulunamadi!")
         return
 
     # 1. Veritabanını hazırla
