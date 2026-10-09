@@ -6,18 +6,29 @@ from flask import Flask
 from openpyxl import load_workbook
 import telebot
 from telebot import types
+import google.generativeai as genai
 
 # --- BOT VE ÇEVRESEL AYARLAR ---
 TOKEN = os.environ.get("BOT_TOKEN", "8899348135:AAH2G6dvKUSaSXuNI0p1PT3_JDCMgjRXaGo")
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
+
 bot = telebot.TeleBot(TOKEN)
+
+# Gemini Yapılandırması
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    ai_model = genai.GenerativeModel("gemini-1.5-flash")
+else:
+    ai_model = None
 
 DB_FILE = "english_bot.db"
 EXCEL_FILE = "translated.xlsx"
 
-# Aktif sınav durumlarını tutan sözlük: {user_id: {"q_idx": 0, "score": 0}}
+# Kullanıcı durumları
 active_placement_tests = {}
+ai_chat_users = set()  # AI koç modunda olan kullanıcılar
 
-# --- FLASK WEB SUNUCUSU (RENDER & UPTIMEROBOT İÇİN) ---
+# --- FLASK WEB SUNUCUSU (RENDER & UPTIMEROBOT) ---
 app = Flask(__name__)
 
 @app.route('/')
@@ -32,7 +43,7 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-# --- STATİK VERİLER: SEVİYE SINAVI, KATEGORİLER VE GRAMER ---
+# --- STATİK VERİLER: SINAV, KATEGORİLER VE GRAMER ---
 
 PLACEMENT_QUESTIONS = [
     {"q": "She _______ from Spain.", "options": ["is", "are", "am", "be"], "a": "is", "lvl": "A1"},
@@ -257,6 +268,9 @@ def get_general_quiz():
 def get_main_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     keyboard.add(
+        types.KeyboardButton("🤖 AI Koç (Soru Sor / Cümle Düzelt)")
+    )
+    keyboard.add(
         types.KeyboardButton("📚 Kelime Çöz"),
         types.KeyboardButton("🧠 Zayıf Kelimelerim")
     )
@@ -275,9 +289,10 @@ def get_main_keyboard():
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     get_user_profile(message.from_user.id)
+    ai_chat_users.discard(message.from_user.id)
     welcome_text = (
         f"Selam **{message.from_user.first_name}**! 🇬🇧\n\n"
-        "AI Destekli İngilizce Koçuna hoş geldin! Aşağıdaki butonları kullanarak hemen başlayabilirsin."
+        "AI Destekli İngilizce Koçuna hoş geldin! Aşağıdaki butonları kullanarak hemen öğrenmeye başlayabilirsin."
     )
     bot.send_message(message.chat.id, welcome_text, reply_markup=get_main_keyboard(), parse_mode="Markdown")
 
@@ -285,6 +300,48 @@ def handle_start(message):
 def handle_text_menu(message):
     uid = message.from_user.id
     txt = message.text
+
+    if txt == "🤖 AI Koç (Soru Sor / Cümle Düzelt)":
+        ai_chat_users.add(uid)
+        bot.send_message(
+            message.chat.id,
+            "🤖 **AI İngilizce Koçun Dinliyor!**\n\n"
+            "Bana aklına gelen her şeyi sorabilirsin:\n"
+            "• İngilizce yazdığın bir cümleyi atıp *'Doğru mu?'* diyebilirsin.\n"
+            "• Kelimeler arasındaki farkları sorabilirsin.\n"
+            "• Gramer kuralı açıklatabilirsin.\n\n"
+            "✍️ *Lütfen sorun veya cümleni doğrudan buraya yaz:*",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Kullanıcı AI modundaysa ve menü butonlarından birine basmadıysa
+    menu_buttons = [
+        "📚 Kelime Çöz", "🧠 Zayıf Kelimelerim", "🗂 Kategorik Kelimeler",
+        "📖 Gramer Dersleri", "🎓 Seviye Belirleme Sınavı", "📊 Profilim & Skor"
+    ]
+    if uid in ai_chat_users and txt not in menu_buttons:
+        if not ai_model:
+            bot.send_message(message.chat.id, "⚠️ AI anahtarı henüz tanımlanmamış. Lütfen Render ortam değişkenlerini kontrol edin.")
+            return
+
+        bot.send_chat_action(message.chat.id, 'typing')
+        prompt = (
+            "Sen uzman, teşvik edici ve samimi bir İngilizce öğretmenisin. "
+            "Kullanıcının yazdığı İngilizce cümleyi veya soruyu analiz et. "
+            "Eğer cümlede gramer veya kelime hatası varsa doğrusunu göster ve nedenini Türkçe olarak net, madde imleriyle açıkla. "
+            "Eğer cümle hatasızsa tebrik et ve alternatif daha doğal kullanımlar öner. "
+            f"Kullanıcının mesajı: {txt}"
+        )
+        try:
+            response = ai_model.generate_content(prompt)
+            bot.reply_to(message, response.text)
+        except Exception as e:
+            bot.reply_to(message, f"AI yanıt verirken bir sorun oluştu: {e}")
+        return
+
+    # Menü butonlarına basıldıysa AI modundan çık
+    ai_chat_users.discard(uid)
 
     if txt == "📚 Kelime Çöz":
         send_quiz_question(message.chat.id, is_unknown_mode=False)
