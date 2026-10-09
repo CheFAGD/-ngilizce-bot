@@ -4,16 +4,12 @@ import sqlite3
 import threading
 from flask import Flask
 from openpyxl import load_workbook
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes
-)
+import telebot
+from telebot import types
 
-# --- BOT TOKEN ---
+# --- BOT BİLGİLERİ ---
 TOKEN = os.environ.get("BOT_TOKEN", "8899348135:AAH2G6dvKUSaSXuNI0p1PT3_JDCMgjRXaGo")
+bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "english_bot.db"
 EXCEL_FILE = "translated.xlsx"
@@ -33,11 +29,10 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-# --- VERİTABANI OLUŞTURMA VE KELİME YÜKLEME ---
+# --- VERİTABANI İŞLEMLERİ ---
 def init_database():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS words (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +40,6 @@ def init_database():
             turkish TEXT
         )
     """)
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_stats (
             user_id INTEGER PRIMARY KEY,
@@ -57,13 +51,11 @@ def init_database():
     cursor.execute("SELECT COUNT(*) FROM words")
     count = cursor.fetchone()[0]
     
-    # Excel'den kelimeleri yükle
     if count == 0 and os.path.exists(EXCEL_FILE):
         try:
             wb = load_workbook(EXCEL_FILE, read_only=True)
             sheet = wb.active
             rows = list(sheet.iter_rows(values_only=True))
-            # İlk satır başlık (English, Türkçe)
             for row in rows[1:]:
                 if row and len(row) >= 2:
                     eng = str(row[0]).strip() if row[0] is not None else ""
@@ -73,7 +65,7 @@ def init_database():
             conn.commit()
             print("Kelimeler basariyla veritabanina aktarildi.")
         except Exception as e:
-            print(f"Excel okuma hatasi: {e}")
+            print(f"Excel hatasi: {e}")
             
     conn.close()
 
@@ -114,66 +106,65 @@ def get_user_score(user_id: int):
     return 0, 0
 
 # --- BOT KOMUTLARI ---
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_name = update.effective_user.first_name
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    name = message.from_user.first_name
     text = (
-        f"Selam {user_name}! 🇬🇧\n\n"
-        "Oxford 3000 kelimelik İngilizce botuna hoş geldin!\n\n"
-        "Neler yapabilirsin?\n"
-        "🔹 /kelime - Yeni bir kelime testi çözer\n"
-        "🔹 /skor - Doğru/Yanlış durumunu görürsün\n"
-        "🔹 /yardim - Bilgi alırsın"
+        f"Selam {name}! 🇬🇧\n\n"
+        "Oxford 3000 kelimelik İngilizce koçuna hoş geldin!\n\n"
+        "📌 Komutlar:\n"
+        "🔹 /kelime - Yeni bir test sorusu sorar\n"
+        "🔹 /skor - İstatistiklerini gösterir\n"
+        "🔹 /yardim - Bilgi verir"
     )
-    await update.message.reply_text(text)
+    bot.reply_to(message, text)
 
-async def kelime_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+@bot.message_handler(commands=['kelime'])
+def ask_word(message):
     eng, tr, options = get_quiz_question()
     if not eng:
-        await update.message.reply_text("Kelimeler hazırlanıyor veya bulunamadı.")
+        bot.reply_to(message, "Kelimeler yükleniyor, lütfen birazdan tekrar dene.")
         return
 
-    keyboard = []
+    markup = types.InlineKeyboardMarkup(row_width=1)
     for opt in options:
         status = "C" if opt == tr else "W"
-        keyboard.append([InlineKeyboardButton(opt, callback_data=f"{status}:{eng}:{tr}")])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        f"🎯 **{eng}** kelimesinin Türkçe karşılığı nedir?",
-        reply_markup=reply_markup,
-        parse_mode="Markdown"
-    )
+        # Callback verisi sınırı için güvenli veri
+        cb_data = f"{status}|{eng[:15]}|{tr[:20]}"
+        markup.add(types.InlineKeyboardButton(opt, callback_data=cb_data))
 
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    user_id = query.from_user.id
-    status, eng, tr = query.data.split(":", 2)
-    
+    bot.send_message(message.chat.id, f"🎯 **{eng}** kelimesinin Türkçe karşılığı nedir?", reply_markup=markup, parse_mode="Markdown")
+
+@bot.callback_query_handler(func=lambda call: True)
+def handle_answer(call):
+    parts = call.data.split("|", 2)
+    status = parts[0]
+    eng = parts[1]
+    tr = parts[2]
+    user_id = call.from_user.id
+
     if status == "C":
         update_user_score(user_id, True)
-        await query.edit_message_text(
-            f"✅ **Doğru! Harikasın!**\n\n"
-            f"🇬🇧 **{eng}** = 🇹🇷 **{tr}**\n\n"
-            f"Yeni kelime için 👉 /kelime",
+        bot.edit_message_text(
+            f"✅ **Doğru! Harika!**\n\n🇬🇧 **{eng}** = 🇹🇷 **{tr}**\n\nYeni kelime için 👉 /kelime",
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
             parse_mode="Markdown"
         )
     else:
         update_user_score(user_id, False)
-        await query.edit_message_text(
-            f"❌ **Yanlış cevap.**\n\n"
-            f"🇬🇧 **{eng}** kelimesinin doğrusu: 🇹🇷 **{tr}**\n\n"
-            f"Yeni kelime için 👉 /kelime",
+        bot.edit_message_text(
+            f"❌ **Yanlış cevap!**\n\n🇬🇧 **{eng}** kelimesinin doğrusu: 🇹🇷 **{tr}**\n\nYeni kelime için 👉 /kelime",
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
             parse_mode="Markdown"
         )
 
-async def skor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    c, w = get_user_score(user_id)
+@bot.message_handler(commands=['skor'])
+def show_score(message):
+    c, w = get_user_score(message.from_user.id)
     total = c + w
     rate = f"%{int((c / total) * 100)}" if total > 0 else "%0"
-    
     msg = (
         f"📊 **Senin İstatistiklerin**\n\n"
         f"✅ Doğru: {c}\n"
@@ -181,40 +172,19 @@ async def skor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📈 Başarı Oranı: {rate}\n"
         f"🎯 Toplam Çözülen: {total}"
     )
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    bot.reply_to(message, msg, parse_mode="Markdown")
 
-async def yardim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "💡 **Kullanım Kılavuzu:**\n\n"
-        "/kelime yazarak kelime testine başlayabilirsin.\n"
-        "/skor yazarak güncel durumunu görebilirsin."
-    )
-    await update.message.reply_text(text, parse_mode="Markdown")
-
-def main():
-    if not TOKEN:
-        print("HATA: BOT_TOKEN bulunamadi!")
-        return
-
-    # 1. Veritabanını hazırla
-    init_database()
-    
-    # 2. Flask web sunucusunu arka planda başlat
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    
-    # 3. Telegram botunu başlat
-    application = ApplicationBuilder().token(TOKEN).build()
-    
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("kelime", kelime_command))
-    application.add_handler(CommandHandler("skor", skor_command))
-    application.add_handler(CommandHandler("yardim", yardim_command))
-    application.add_handler(CallbackQueryHandler(handle_callback))
-    
-    print("Bot basariyla calisiyor...")
-    application.run_polling()
+@bot.message_handler(commands=['yardim'])
+def send_help(message):
+    bot.reply_to(message, "Yeni bir kelime çözmek için /kelime yazabilirsin!")
 
 if __name__ == "__main__":
-    main()
+    init_database()
+    
+    # Web sunucusunu başlat
+    t = threading.Thread(target=run_flask)
+    t.daemon = True
+    t.start()
+    
+    print("Bot basariyla baslatildi...")
+    bot.infinity_polling()
