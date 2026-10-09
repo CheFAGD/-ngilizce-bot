@@ -14,10 +14,10 @@ bot = telebot.TeleBot(TOKEN)
 DB_FILE = "english_bot.db"
 EXCEL_FILE = "translated.xlsx"
 
-# Aktif sınav durumlarını tutan bellek sözlüğü: {user_id: {"q_idx": 0, "score": 0}}
+# Aktif sınav durumlarını tutan sözlük: {user_id: {"q_idx": 0, "score": 0}}
 active_placement_tests = {}
 
-# --- FLASK WEB SUNUCUSU (RENDER UPTIME) ---
+# --- FLASK WEB SUNUCUSU (RENDER & UPTIMEROBOT İÇİN) ---
 app = Flask(__name__)
 
 @app.route('/')
@@ -32,7 +32,7 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-# --- STATİK VERİLER: GRAMER, KATEGORİLER VE SEVİYE SINAVI ---
+# --- STATİK VERİLER: SEVİYE SINAVI, KATEGORİLER VE GRAMER ---
 
 PLACEMENT_QUESTIONS = [
     {"q": "She _______ from Spain.", "options": ["is", "are", "am", "be"], "a": "is", "lvl": "A1"},
@@ -49,98 +49,81 @@ PLACEMENT_QUESTIONS = [
 
 CATEGORY_DATA = {
     "travel": {
-        "title": "✈️ Seyahat & Yurtdışı Tatili",
+        "title": "✈️ Seyahat & Tatil",
         "words": [
             ("passport", "pasaport"), ("boarding pass", "biniş kartı"), ("customs", "gümrük"),
-            ("baggage claim", "bagaj alım yeri"), ("flight attendant", "uçuş görevlisi"),
-            ("delay", "gecikme"), ("currency exchange", "döviz bürosu"), ("reservation", "rezervasyon"),
-            ("departure", "kalkış / gidiş"), ("arrival", "varış")
+            ("baggage claim", "bagaj alım yeri"), ("delay", "gecikme"), ("reservation", "rezervasyon")
         ],
         "sentences": [
             ("Where is the baggage claim area?", "Bagaj alım alanı nerede?"),
             ("Here is my passport and boarding pass.", "Buyrun pasaportum ve biniş kartım."),
             ("I would like to check in for my flight.", "Uçuşum için check-in yaptırmak istiyorum."),
-            ("I am here for vacation for one week.", "Bir haftalığına tatil için buradayım."),
             ("Could you call a taxi for me, please?", "Benim için bir taksi çağırabilir misiniz lütfen?")
         ]
     },
     "business": {
-        "title": "💼 İş Dünyası & Mülakat",
+        "title": "💼 İş Dünyası",
         "words": [
             ("deadline", "son teslim tarihi"), ("meeting", "toplantı"), ("negotiate", "müzakere etmek"),
-            ("colleague", "iş arkadaşı"), ("salary", "maaş"), ("contract", "sözleşme"),
-            ("promotion", "terfi"), ("schedule", "çalışma takvimi"), ("client", "müşteri")
+            ("salary", "maaş"), ("contract", "sözleşme"), ("client", "müşteri")
         ],
         "sentences": [
             ("We need to meet the deadline tomorrow.", "Yarınki son teslim tarihine yetişmemiz gerekiyor."),
             ("Let's schedule a meeting for Friday.", "Cuma günü için bir toplantı planlayalım."),
-            ("I am responsible for client communication.", "Müşteri iletişiminden ben sorumluyum."),
             ("Could you send me the contract via email?", "Sözleşmeyi bana e-posta ile gönderebilir misiniz?")
         ]
     },
     "food": {
-        "title": "🍽 Restoran & Yeme-İçme",
+        "title": "🍽 Restoran & Yemek",
         "words": [
-            ("menu", "menü"), ("bill / check", "hesap"), ("waiter", "garson"),
-            ("delicious", "lezzetli"), ("spicy", "baharatlı / acı"), ("dessert", "tatlı"),
-            ("beverage", "içecek"), ("tip", "bahşiş"), ("order", "sipariş")
+            ("menu", "menü"), ("bill", "hesap"), ("waiter", "garson"),
+            ("delicious", "lezzetli"), ("spicy", "acılı / baharatlı"), ("dessert", "tatlı")
         ],
         "sentences": [
             ("Could we have the bill, please?", "Hesabı alabilir miyiz lütfen?"),
             ("What do you recommend for dinner?", "Akşam yemeği için ne önerirsiniz?"),
-            ("I would like to order a steak with salad.", "Salata ile birlikte biftek sipariş etmek istiyorum."),
             ("Is this dish spicy?", "Bu yemek acı mı?")
         ]
     },
     "daily": {
-        "title": "🏫 Günlük Yaşam & Sosyal",
+        "title": "🏫 Günlük Yaşam",
         "words": [
-            ("neighborhood", "mahalle / çevre"), ("groceries", "market alışverişi"),
-            ("commute", "işe/okula gidip gelmek"), ("appointment", "randevu"),
-            ("hobby", "hobi"), ("weather", "hava durumu")
+            ("neighborhood", "mahalle"), ("groceries", "market alışverişi"),
+            ("commute", "işe/okula gidip gelmek"), ("appointment", "randevu")
         ],
         "sentences": [
             ("What time does the bus leave?", "Otobüs saat kaçta kalkıyor?"),
-            ("I need to buy some groceries today.", "Bugün biraz market alışverişi yapmam gerek."),
-            ("How was your day at university?", "Üniversitedeki günün nasıl geçti?")
+            ("How was your day?", "Günün nasıl geçti?")
         ]
     }
 }
 
 GRAMMAR_LESSONS = {
     "A1": (
-        "📘 **A1 Gramer: To Be (am / is / are)**\n\n"
-        "İngilizcede eylem bildirmeyen, durum ve kimlik belirten cümlelerin temel direğidir.\n\n"
-        "• **I** ➔ **am** (I am a student.)\n"
-        "• **He / She / It** ➔ **is** (He is tired.)\n"
-        "• **You / We / They** ➔ **are** (They are ready.)\n\n"
-        "💡 **Kısa Özet:** Bir eylem (koşmak, gitmek) yoksa, sadece durum/sıfat anlatıyorsan 'am/is/are' yapıştır geç!"
+        "📘 **A1: To Be (am / is / are)**\n\n"
+        "İngilizcede eylem bildirmeyen, durum ve kimlik bildiren cümlelerde kullanılır.\n\n"
+        "• I ➔ am\n"
+        "• He / She / It ➔ is\n"
+        "• You / We / They ➔ are\n\n"
+        "Örnek: *She is a doctor.* (O bir doktordur.)"
     ),
     "A2": (
-        "📗 **A2 Gramer: Past Simple (Geçmiş Zaman -ed / V2)**\n\n"
-        "Geçmişte yaşanmış, bitmiş ve net bir zamanı olan olaylar için kullanılır.\n\n"
-        "• **Düzenli Fiiller:** Fiilin sonuna `-ed` gelir.\n"
-        "  Örnek: *I watched TV yesterday.* (Dün TV izledim.)\n"
-        "• **Düzensiz Fiiller:** Tamamen şekil değiştirir.\n"
-        "  *go ➔ went*, *see ➔ saw*, *eat ➔ ate*\n\n"
-        "💡 **Soru ve Olumsuzda:** 'did / didn't' devreye girer ve fiil hemen ilk haline (V1) döner!\n"
-        "  *I didn't go.* (Gittim değil, gitmedim.)"
+        "📗 **A2: Past Simple (Geçmiş Zaman)**\n\n"
+        "Geçmişte olup bitmiş olaylar için kullanılır.\n\n"
+        "• Düzenli: Fiile -ed gelir (watch ➔ watched)\n"
+        "• Düzensiz: Şekil değişir (go ➔ went, see ➔ saw)\n\n"
+        "Örnek: *I went to school yesterday.* (Dün okula gittim.)"
     ),
     "B1": (
-        "📙 **B1 Gramer: Present Perfect Tense (have/has + V3)**\n\n"
-        "Geçmişte olmuş ama **ne zaman olduğu önemli olmayan**, etkisi hala devam eden olaylar.\n\n"
-        "• **I / You / We / They** ➔ **have + V3**\n"
-        "• **He / She / It** ➔ **has + V3**\n\n"
-        "Örnek: *I have lost my passport.* (Pasaportumu kaybettim — zamanı belli değil ama şu an elimde yok!)\n"
-        "💡 **İpucu:** 'Since' (den beri) ve 'For' (boyunca) kelimeleri bu zamanın en iyi dostudur."
+        "📙 **B1: Present Perfect Tense**\n\n"
+        "Geçmişte olmuş ama zamanı net olmayan veya etkisi süren durumlar.\n\n"
+        "• have/has + V3 (fiilin 3. hali)\n\n"
+        "Örnek: *I have visited Paris.* (Paris'i ziyaret ettim.)"
     ),
     "B2": (
-        "📕 **B2 Gramer: Conditionals (Koşul Cümleleri - If Clauses)**\n\n"
-        "Hayali durumlar, varsayımlar ve pişmanlıklar:\n\n"
-        "• **Type 2 (Hayali/Şimdiki Zaman):**\n"
-        "  *If I were rich, I would travel the world.* (Zengin olsaydım dünyayı gezerdim - şu an zengin değilim)\n"
-        "• **Type 3 (Geçmiş Pişmanlık):**\n"
-        "  *If I had studied harder, I would have passed the exam.* (Daha çok çalışsaydım geçerdim - çalışmadım ve kaldım)"
+        "📕 **B2: Conditionals (Koşul Cümleleri)**\n\n"
+        "• Type 2 (Hayali): *If I were you, I would study.* (Senin yerinde olsaydım çalışırdım.)\n"
+        "• Type 3 (Pişmanlık): *If I had known, I would have helped.* (Bilseydim yardım ederdim.)"
     )
 }
 
@@ -149,7 +132,6 @@ GRAMMAR_LESSONS = {
 def init_database():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS words (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -174,10 +156,8 @@ def init_database():
             UNIQUE(user_id, english)
         )
     """)
-    
     cursor.execute("SELECT COUNT(*) FROM words")
     count = cursor.fetchone()[0]
-    
     if count == 0 and os.path.exists(EXCEL_FILE):
         try:
             wb = load_workbook(EXCEL_FILE, read_only=True)
@@ -190,10 +170,9 @@ def init_database():
                     if eng and tr and eng.lower() != 'the oxford':
                         cursor.execute("INSERT OR IGNORE INTO words (english, turkish) VALUES (?, ?)", (eng, tr))
             conn.commit()
-            print("Oxford 3000 kelimeleri veritabanina yuklendi.")
+            print("Kelimeler veritabanina yuklendi.")
         except Exception as e:
-            print(f"Excel aktarim hatasi: {e}")
-            
+            print("Excel yukleme hatasi:", e)
     conn.close()
 
 def get_user_profile(user_id):
@@ -253,12 +232,9 @@ def get_random_unknown_quiz(user_id):
     if not target:
         conn.close()
         return None, None, []
-    
-    # 3 yanlis sik icin genel havuzdan sec
     cursor.execute("SELECT turkish FROM words WHERE english != ? ORDER BY RANDOM() LIMIT 3", (target[0],))
     distractors = [r[0] for r in cursor.fetchall()]
     conn.close()
-    
     options = distractors + [target[1]]
     random.shuffle(options)
     return target[0], target[1], options
@@ -276,7 +252,7 @@ def get_general_quiz():
     random.shuffle(options)
     return target_eng, target_tr, options
 
-# --- ARAYÜZ VE MENÜLER ---
+# --- KLAVYE MENÜSÜ ---
 
 def get_main_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -294,15 +270,14 @@ def get_main_keyboard():
     )
     return keyboard
 
-# --- KOMUTLAR VE MESAJ YÖNLENDİRİCİ ---
+# --- KOMUT VE MESAJ YÖNLENDİRME ---
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-    user_name = message.from_user.first_name
     get_user_profile(message.from_user.id)
     welcome_text = (
-        f"Selam **{user_name}**! 🇬🇧\n\n"
-        "AI Destekli İngilizce Koçuna hoş geldin! Aşağıdaki interaktif menüyü kullanarak hemen öğrenmeye başlayabilirsin."
+        f"Selam **{message.from_user.first_name}**! 🇬🇧\n\n"
+        "AI Destekli İngilizce Koçuna hoş geldin! Aşağıdaki butonları kullanarak hemen başlayabilirsin."
     )
     bot.send_message(message.chat.id, welcome_text, reply_markup=get_main_keyboard(), parse_mode="Markdown")
 
@@ -317,11 +292,7 @@ def handle_text_menu(message):
     elif txt == "🧠 Zayıf Kelimelerim":
         count = get_unknown_words_count(uid)
         if count == 0:
-            bot.send_message(
-                message.chat.id,
-                "🎉 **Harika durumdasın!**\n\nHaznede hiç bilmediğin kelime yok. Normal kelime testleri çözerek eksiklerini keşfedebilirsin!",
-                parse_mode="Markdown"
-            )
+            bot.send_message(message.chat.id, "🎉 **Harika!** Zayıf kelimeler listende henüz kelime yok.", parse_mode="Markdown")
         else:
             send_quiz_question(message.chat.id, is_unknown_mode=True)
 
@@ -329,20 +300,20 @@ def handle_text_menu(message):
         markup = types.InlineKeyboardMarkup(row_width=2)
         for cat_key, cat_val in CATEGORY_DATA.items():
             markup.add(
-                types.InlineKeyboardButton(f"{cat_val['title']} (Kelimeler)", callback_data=f"catw:{cat_key}"),
-                types.InlineKeyboardButton(f"🗣 Kalıp Cümleler", callback_data=f"cats:{cat_key}")
+                types.InlineKeyboardButton(f"{cat_val['title']} (Kelimeler)", callback_data=f"cw:{cat_key}"),
+                types.InlineKeyboardButton("🗣 Cümleler", callback_data=f"cs:{cat_key}")
             )
         bot.send_message(message.chat.id, "📌 **Çalışmak istediğin alanı seç:**", reply_markup=markup, parse_mode="Markdown")
 
     elif txt == "📖 Gramer Dersleri":
         markup = types.InlineKeyboardMarkup(row_width=2)
         markup.add(
-            types.InlineKeyboardButton("A1: Temel Başlangıç (To Be)", callback_data="grm:A1"),
-            types.InlineKeyboardButton("A2: Geçmiş Zaman (Past Simple)", callback_data="grm:A2"),
-            types.InlineKeyboardButton("B1: Present Perfect Tense", callback_data="grm:B1"),
-            types.InlineKeyboardButton("B2: Koşul Cümleleri (If Clauses)", callback_data="grm:B2")
+            types.InlineKeyboardButton("A1: To Be", callback_data="gm:A1"),
+            types.InlineKeyboardButton("A2: Past Simple", callback_data="gm:A2"),
+            types.InlineKeyboardButton("B1: Present Perfect", callback_data="gm:B1"),
+            types.InlineKeyboardButton("B2: Conditionals", callback_data="gm:B2")
         )
-        bot.send_message(message.chat.id, "📘 **Öğrenmek istediğin gramer seviyesini seç:**", reply_markup=markup, parse_mode="Markdown")
+        bot.send_message(message.chat.id, "📘 **Gramer Seviyesini Seç:**", reply_markup=markup, parse_mode="Markdown")
 
     elif txt == "🎓 Seviye Belirleme Sınavı":
         active_placement_tests[uid] = {"q_idx": 0, "score": 0}
@@ -353,54 +324,50 @@ def handle_text_menu(message):
         un_count = get_unknown_words_count(uid)
         total = c + w
         rate = f"%{int((c / total) * 100)}" if total > 0 else "%0"
-        
         msg = (
             f"👤 **Öğrenci Profili**\n\n"
-            f"🎯 Mevcut Seviyen: **{lvl}**\n"
-            f"✅ Doğru Cevaplar: **{c}**\n"
-            f"❌ Yanlış Cevaplar: **{w}**\n"
-            f"📈 Genel Başarı: **{rate}**\n"
-            f"🧠 Tekrar Listendeki Kelimeler: **{un_count} adet**"
+            f"🎯 Seviyen: **{lvl}**\n"
+            f"✅ Doğru: **{c}**\n"
+            f"❌ Yanlış: **{w}**\n"
+            f"📈 Başarı: **{rate}**\n"
+            f"🧠 Tekrar Bekleyen Kelimeler: **{un_count} adet**"
         )
         bot.send_message(message.chat.id, msg, parse_mode="Markdown")
 
-# --- KELİME TESTİ FONKSİYONU ---
+# --- KELİME TESTİ ---
 
 def send_quiz_question(chat_id, is_unknown_mode=False):
     if is_unknown_mode:
         eng, tr, options = get_random_unknown_quiz(chat_id)
-        mode_prefix = "U" # Unknown mode
+        mode = "U"
     else:
         eng, tr, options = get_general_quiz()
-        mode_prefix = "G" # General mode
+        mode = "G"
 
     if not eng:
-        bot.send_message(chat_id, "Kelime havuzu hazırlanıyor, lütfen tekrar deneyin.")
+        bot.send_message(chat_id, "Kelime bulunamadı, lütfen tekrar deneyin.")
         return
 
     markup = types.InlineKeyboardMarkup(row_width=1)
     for opt in options:
         status = "C" if opt == tr else "W"
-        cb = f"Q:{mode_prefix}:{status}:{eng[:14]}:{tr[:14]}"
+        cb = f"Q|{mode}|{status}|{eng[:12]}|{tr[:12]}"
         markup.add(types.InlineKeyboardButton(opt, callback_data=cb))
     
-    # Bilmiyorum butonu
-    idk_cb = f"Q:{mode_prefix}:IDK:{eng[:14]}:{tr[:14]}"
+    idk_cb = f"Q|{mode}|IDK|{eng[:12]}|{tr[:12]}"
     markup.add(types.InlineKeyboardButton("🤷‍♂️ Bilmiyorum", callback_data=idk_cb))
 
-    title = "🧠 **[Zayıf Kelime Tekrarı]**\n" if is_unknown_mode else "🎯 "
-    bot.send_message(chat_id, f"{title}**{eng}** kelimesinin Türkçe karşılığı nedir?", reply_markup=markup, parse_mode="Markdown")
+    prefix = "🧠 **[Zayıf Kelime]**\n" if is_unknown_mode else "🎯 "
+    bot.send_message(chat_id, f"{prefix}**{eng}** kelimesinin Türkçe karşılığı nedir?", reply_markup=markup, parse_mode="Markdown")
 
-# --- SEVİYE TESPİT SINAVI FONKSİYONU ---
+# --- SEVİYE SINAVI ---
 
 def send_placement_question(chat_id, user_id):
     state = active_placement_tests.get(user_id)
     if not state:
         return
-    
     idx = state["q_idx"]
     if idx >= len(PLACEMENT_QUESTIONS):
-        # Sınav bitti
         score = state["score"]
         if score <= 2:
             final_lvl = "A1"
@@ -412,16 +379,11 @@ def send_placement_question(chat_id, user_id):
             final_lvl = "B2"
         else:
             final_lvl = "C1"
-            
         set_user_level(user_id, final_lvl)
         del active_placement_tests[user_id]
-        
         bot.send_message(
             chat_id,
-            f"🏁 **Seviye Tespit Sınavı Tamamlandı!**\n\n"
-            f"📊 Doğru Sayın: **{score} / 10**\n"
-            f"🎖 Belirlenen Seviyen: **{final_lvl}**\n\n"
-            f"Tebrikler! Seviyen sistemde güncellendi. Artık bu seviyeye göre pratik yapabilirsin.",
+            f"🏁 **Sınav Bitti!**\n\nDoğru: **{score}/10**\nBelirlenen Seviyen: **{final_lvl}**",
             parse_mode="Markdown"
         )
         return
@@ -429,4 +391,83 @@ def send_placement_question(chat_id, user_id):
     q_data = PLACEMENT_QUESTIONS[idx]
     markup = types.InlineKeyboardMarkup(row_width=2)
     for opt in q_data["options"]:
-        cb = f"
+        cb = f"PT|{opt}|{q_data['a']}"
+        markup.add(types.InlineKeyboardButton(opt, callback_data=cb))
+
+    bot.send_message(
+        chat_id,
+        f"📝 **Soru {idx + 1}/10 ({q_data['lvl']}):**\n\n{q_data['q']}",
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
+
+# --- BUTON CEVAPLARI ---
+
+@bot.callback_query_handler(func=lambda call: True)
+def handle_callbacks(call):
+    bot.answer_callback_query(call.id)
+    data = call.data
+    uid = call.from_user.id
+    cid = call.message.chat.id
+    mid = call.message.message_id
+
+    if data.startswith("Q|"):
+        _, mode, status, eng, tr = data.split("|", 4)
+        if status == "C":
+            update_score(uid, True)
+            extra = ""
+            if mode == "U":
+                remove_unknown_word(uid, eng)
+                extra = "\n✨ *Bu kelimeyi öğrendin, listeden kaldırıldı!*"
+            bot.edit_message_text(f"✅ **Doğru!**\n\n🇬🇧 **{eng}** = 🇹🇷 **{tr}**{extra}", chat_id=cid, message_id=mid, parse_mode="Markdown")
+        elif status == "W":
+            update_score(uid, False)
+            add_unknown_word(uid, eng, tr)
+            bot.edit_message_text(f"❌ **Yanlış!**\n\n🇬🇧 **{eng}** = 🇹🇷 **{tr}**\n\n📌 *Zayıf kelimeler listene eklendi.*", chat_id=cid, message_id=mid, parse_mode="Markdown")
+        elif status == "IDK":
+            add_unknown_word(uid, eng, tr)
+            bot.edit_message_text(f"💡 **Doğrusu:**\n\n🇬🇧 **{eng}** = 🇹🇷 **{tr}**\n\n📌 *Zayıf kelimeler listene eklendi.*", chat_id=cid, message_id=mid, parse_mode="Markdown")
+
+    elif data.startswith("PT|"):
+        _, chosen, ans = data.split("|", 2)
+        state = active_placement_tests.get(uid)
+        if state:
+            if chosen == ans:
+                state["score"] += 1
+            state["q_idx"] += 1
+            bot.delete_message(cid, mid)
+            send_placement_question(cid, uid)
+
+    elif data.startswith("cw:"):
+        k = data.split(":")[1]
+        cat = CATEGORY_DATA.get(k)
+        if cat:
+            txt = f"{cat['title']} - **Kelimeler**:\n\n"
+            for eng, tr in cat['words']:
+                txt += f"• **{eng}**: {tr}\n"
+            bot.send_message(cid, txt, parse_mode="Markdown")
+
+    elif data.startswith("cs:"):
+        k = data.split(":")[1]
+        cat = CATEGORY_DATA.get(k)
+        if cat:
+            txt = f"{cat['title']} - **Kalıp Cümleler**:\n\n"
+            for eng, tr in cat['sentences']:
+                txt += f"💬 **{eng}**\n↳ *{tr}*\n\n"
+            bot.send_message(cid, txt, parse_mode="Markdown")
+
+    elif data.startswith("gm:"):
+        lvl = data.split(":")[1]
+        lesson = GRAMMAR_LESSONS.get(lvl)
+        if lesson:
+            bot.send_message(cid, lesson, parse_mode="Markdown")
+
+# --- BAŞLATMA ---
+
+if __name__ == "__main__":
+    init_database()
+    t = threading.Thread(target=run_flask)
+    t.daemon = True
+    t.start()
+    print("Bot basariyla baslatildi...")
+    bot.infinity_polling()
