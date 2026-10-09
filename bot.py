@@ -14,8 +14,9 @@ from telegram.ext import (
     filters
 )
 
-# --- BOT BİLGİLERİ ---
-TOKEN = "8899348135:AAH2G6dvKUSaSXuNI0p1PT3_JDCMgjRXaGo"
+# --- BOT TOKEN (GÜVENLİ ÇEVRE DEĞİŞKENİNDEN ALINIR) ---
+TOKEN = os.environ.get("BOT_TOKEN")
+
 DB_FILE = "english_bot.db"
 EXCEL_FILE = "translated.xlsx"
 
@@ -192,6 +193,10 @@ async def yardim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="Markdown")
 
 def main():
+    if not TOKEN:
+        print("HATA: BOT_TOKEN bulunamadi! Render uzerinden eklemeyi unutmayin.")
+        return
+
     # 1. Veritabanını hazırla
     init_database()
     
