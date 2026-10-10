@@ -49,19 +49,19 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-# --- SORULAR VE DERSLER ---
+# --- SORULAR VE DERSLER (Alt tireler Markdown bozmaması için nokta yapıldı) ---
 
 PLACEMENT_QUESTIONS = [
-    {"q": "She _______ from Spain.", "options": ["is", "are", "am", "be"], "a": "is", "lvl": "A1"},
-    {"q": "I _______ a movie yesterday night.", "options": ["watched", "watch", "watching", "have watched"], "a": "watched", "lvl": "A1"},
-    {"q": "There aren't _______ apples left in the basket.", "options": ["any", "some", "much", "an"], "a": "any", "lvl": "A2"},
-    {"q": "He was cooking dinner while she _______ a book.", "options": ["was reading", "reads", "has read", "is reading"], "a": "was reading", "lvl": "A2"},
-    {"q": "If it rains tomorrow, we _______ the match.", "options": ["will cancel", "canceled", "cancel", "would cancel"], "a": "will cancel", "lvl": "B1"},
-    {"q": "I have lived in this city _______ 2018.", "options": ["since", "for", "in", "during"], "a": "since", "lvl": "B1"},
-    {"q": "By the time the police arrived, the thieves _______.", "options": ["had escaped", "escaped", "have escaped", "escape"], "a": "had escaped", "lvl": "B2"},
-    {"q": "If I _______ you, I would take that offer immediately.", "options": ["were", "am", "will be", "had been"], "a": "were", "lvl": "B2"},
-    {"q": "Seldom _______ such an extraordinary performance.", "options": ["have I seen", "I saw", "I have seen", "saw I"], "a": "have I seen", "lvl": "C1"},
-    {"q": "The manager insisted that the report _______ submitted by noon.", "options": ["be", "is", "was", "will be"], "a": "be", "lvl": "C1"}
+    {"q": "She ....... from Spain.", "options": ["is", "are", "am", "be"], "a": "is", "lvl": "A1"},
+    {"q": "I ....... a movie yesterday night.", "options": ["watched", "watch", "watching", "have watched"], "a": "watched", "lvl": "A1"},
+    {"q": "There aren't ....... apples left in the basket.", "options": ["any", "some", "much", "an"], "a": "any", "lvl": "A2"},
+    {"q": "He was cooking dinner while she ....... a book.", "options": ["was reading", "reads", "has read", "is reading"], "a": "was reading", "lvl": "A2"},
+    {"q": "If it rains tomorrow, we ....... the match.", "options": ["will cancel", "canceled", "cancel", "would cancel"], "a": "will cancel", "lvl": "B1"},
+    {"q": "I have lived in this city ....... 2018.", "options": ["since", "for", "in", "during"], "a": "since", "lvl": "B1"},
+    {"q": "By the time the police arrived, the thieves ....... .", "options": ["had escaped", "escaped", "have escaped", "escape"], "a": "had escaped", "lvl": "B2"},
+    {"q": "If I ....... you, I would take that offer immediately.", "options": ["were", "am", "will be", "had been"], "a": "were", "lvl": "B2"},
+    {"q": "Seldom ....... such an extraordinary performance.", "options": ["have I seen", "I saw", "I have seen", "saw I"], "a": "have I seen", "lvl": "C1"},
+    {"q": "The manager insisted that the report ....... submitted by noon.", "options": ["be", "is", "was", "will be"], "a": "be", "lvl": "C1"}
 ]
 
 CATEGORY_DATA = {
@@ -88,10 +88,10 @@ CATEGORY_DATA = {
 }
 
 GRAMMAR_LESSONS = {
-    "A1": "📘 **A1: To Be (am / is / are)**\n\n• I ➔ am\n• He / She / It ➔ is\n• You / We / They ➔ are\n\nÖrnek: *She is a doctor.*",
-    "A2": "📗 **A2: Past Simple (Geçmiş Zaman)**\n\n• Düzenli: -ed (watched)\n• Düzensiz: (went, saw)\n\nÖrnek: *I went home.*",
-    "B1": "📙 **B1: Present Perfect Tense**\n\n• have/has + V3\n\nÖrnek: *I have visited London.*",
-    "B2": "📕 **B2: Conditionals**\n\n• Type 2: *If I were you, I would study.*"
+    "A1": "📘 A1: To Be (am / is / are)\n\n• I -> am\n• He / She / It -> is\n• You / We / They -> are\n\nÖrnek: She is a doctor.",
+    "A2": "📗 A2: Past Simple (Geçmiş Zaman)\n\n• Düzenli: -ed (watched)\n• Düzensiz: (went, saw)\n\nÖrnek: I went home.",
+    "B1": "📙 B1: Present Perfect Tense\n\n• have/has + V3\n\nÖrnek: I have visited London.",
+    "B2": "📕 B2: Conditionals\n\n• Type 2: If I were you, I would study."
 }
 
 # --- VERİTABANI ---
@@ -258,12 +258,11 @@ def run_placement_question(chat_id, user_id):
             active_placement_tests.pop(user_id, None)
             bot.send_message(
                 chat_id,
-                f"🏁 **Seviye Belirleme Sınavı Tamamlandı!**\n\n"
-                f"✅ Doğru Sayın: **{score} / 10**\n"
-                f"🎯 Belirlenen Seviyen: **{final_lvl}**\n\n"
+                f"🏁 Seviye Belirleme Sınavı Tamamlandı!\n\n"
+                f"✅ Doğru Sayın: {score} / 10\n"
+                f"🎯 Belirlenen Seviyen: {final_lvl}\n\n"
                 f"Profilin güncellendi!",
-                reply_markup=get_main_keyboard(),
-                parse_mode="Markdown"
+                reply_markup=get_main_keyboard()
             )
             return
 
@@ -272,37 +271,31 @@ def run_placement_question(chat_id, user_id):
         for i, opt in enumerate(q_data["options"]):
             markup.add(types.InlineKeyboardButton(opt, callback_data=f"PT|{i}"))
 
+        # parse_mode kaldırıldı, alt tire ve işaretler Telegram'ı patlatmayacak
         bot.send_message(
             chat_id,
-            f"📝 **Soru {idx + 1}/10 ({q_data['lvl']}):**\n\n{q_data['q']}",
-            reply_markup=markup,
-            parse_mode="Markdown"
+            f"📝 Soru {idx + 1}/10 ({q_data['lvl']}):\n\n{q_data['q']}",
+            reply_markup=markup
         )
     except Exception as e:
         bot.send_message(chat_id, f"Sınav başlatılırken hata oluştu: {e}")
 
 # --- MESAJ YÖNLENDİRİCİ ---
 
-@bot.message_handler(commands=['start', 'sbs'])
+@bot.message_handler(commands=['start'])
 def handle_start(message):
     uid = message.from_user.id
     if not is_authorized(uid):
-        bot.send_message(message.chat.id, "⛔ **Erişim Engellendi:** Bu bot sadece yetkili kullanıcılara özeldir.", parse_mode="Markdown")
+        bot.send_message(message.chat.id, "⛔ Erişim Engellendi: Bu bot sadece yetkili kullanıcılara özeldir.")
         return
 
     get_user_profile(uid)
     ai_chat_users.discard(uid)
-
-    if message.text and message.text.startswith('/sbs'):
-        active_placement_tests[uid] = {"q_idx": 0, "score": 0}
-        run_placement_question(message.chat.id, uid)
-        return
-
     welcome_text = (
-        f"Selam **{message.from_user.first_name}**! 🇬🇧\n\n"
+        f"Selam {message.from_user.first_name}! 🇬🇧\n\n"
         "AI Destekli İngilizce Koçuna hoş geldin! Aşağıdaki butonları kullanarak hemen başlayabilirsin."
     )
-    bot.send_message(message.chat.id, welcome_text, reply_markup=get_main_keyboard(), parse_mode="Markdown")
+    bot.send_message(message.chat.id, welcome_text, reply_markup=get_main_keyboard())
 
 @bot.message_handler(func=lambda msg: True)
 def handle_text_menu(message):
@@ -311,30 +304,28 @@ def handle_text_menu(message):
         return
 
     raw_text = (message.text or "")
-    # Tüm boşlukları, enterları ve gereksiz karakterleri temizleyip normalize edelim
     cleaned = raw_text.replace("\n", " ").strip().lower()
 
-    # 1. SEVİYE BELİRLEME SINAVI BUTONU (Her formatı, enterlı halini ve kelimeyi yakalar)
+    # 1. SEVİYE BELİRLEME SINAVI
     if "seviye" in cleaned or "sınav" in cleaned or "sinav" in cleaned:
         ai_chat_users.discard(uid)
         active_placement_tests[uid] = {"q_idx": 0, "score": 0}
         run_placement_question(message.chat.id, uid)
         return
 
-    # 2. AI KOÇ BUTONU
+    # 2. AI KOÇ
     if "ai koç" in cleaned or "ai koc" in cleaned:
         ai_chat_users.add(uid)
         bot.send_message(
             message.chat.id,
-            "🤖 **AI İngilizce Koçun Dinliyor!**\n\n"
+            "🤖 AI İngilizce Koçun Dinliyor!\n\n"
             "Bana istediğin İngilizce cümleyi veya soruyu yazabilirsin.\n"
-            "✍️ *Mesajını buraya yaz:*",
-            parse_mode="Markdown"
+            "✍️ Mesajını buraya yaz:"
         )
         return
 
     # 3. KELİME ÇÖZ
-    if "kelime" in cleaned and "çöz" in cleaned or "coz" in cleaned:
+    if "kelime" in cleaned and ("çöz" in cleaned or "coz" in cleaned):
         ai_chat_users.discard(uid)
         send_quiz_question(message.chat.id, is_unknown_mode=False)
         return
@@ -344,7 +335,7 @@ def handle_text_menu(message):
         ai_chat_users.discard(uid)
         count = get_unknown_words_count(uid)
         if count == 0:
-            bot.send_message(message.chat.id, "🎉 **Harika!** Zayıf kelimeler listende henüz kelime yok.", parse_mode="Markdown")
+            bot.send_message(message.chat.id, "🎉 Harika! Zayıf kelimeler listende henüz kelime yok.")
         else:
             send_quiz_question(message.chat.id, is_unknown_mode=True)
         return
@@ -358,7 +349,7 @@ def handle_text_menu(message):
                 types.InlineKeyboardButton(f"{cat_val['title']} (Kelimeler)", callback_data=f"cw:{cat_key}"),
                 types.InlineKeyboardButton("🗣 Cümleler", callback_data=f"cs:{cat_key}")
             )
-        bot.send_message(message.chat.id, "📌 **Çalışmak istediğin alanı seç:**", reply_markup=markup, parse_mode="Markdown")
+        bot.send_message(message.chat.id, "📌 Çalışmak istediğin alanı seç:", reply_markup=markup)
         return
 
     # 6. GRAMER DERSLERİ
@@ -371,7 +362,7 @@ def handle_text_menu(message):
             types.InlineKeyboardButton("B1: Present Perfect", callback_data="gm:B1"),
             types.InlineKeyboardButton("B2: Conditionals", callback_data="gm:B2")
         )
-        bot.send_message(message.chat.id, "📘 **Gramer Seviyesini Seç:**", reply_markup=markup, parse_mode="Markdown")
+        bot.send_message(message.chat.id, "📘 Gramer Seviyesini Seç:", reply_markup=markup)
         return
 
     # 7. PROFİLİM & SKOR
@@ -383,17 +374,17 @@ def handle_text_menu(message):
         total = c + w
         rate = f"%{int((c / total) * 100)}" if total > 0 else "%0"
         msg = (
-            f"👤 **Öğrenci Profili**\n\n"
-            f"🎯 Seviyen: **{lvl}**\n"
-            f"✅ Doğru: **{c}**\n"
-            f"❌ Yanlış: **{w}**\n"
-            f"📈 Başarı: **{rate}**\n"
-            f"🧠 Tekrar Bekleyen Kelimeler: **{un_count} adet**"
+            f"👤 Öğrenci Profili\n\n"
+            f"🎯 Seviyen: {lvl}\n"
+            f"✅ Doğru: {c}\n"
+            f"❌ Yanlış: {w}\n"
+            f"📈 Başarı: {rate}\n"
+            f"🧠 Tekrar Bekleyen Kelimeler: {un_count} adet"
         )
-        bot.send_message(message.chat.id, msg, parse_mode="Markdown")
+        bot.send_message(message.chat.id, msg)
         return
 
-    # 8. AI SOHBET CEVABI
+    # 8. AI SOHBET
     if uid in ai_chat_users:
         if not ai_model:
             bot.send_message(message.chat.id, "⚠️ AI anahtarı tanımlanmamış.")
@@ -433,8 +424,8 @@ def send_quiz_question(chat_id, is_unknown_mode=False):
         markup.add(types.InlineKeyboardButton(opt, callback_data=cb))
     
     markup.add(types.InlineKeyboardButton("🤷‍♂️ Bilmiyorum", callback_data=f"Q|{mode}|IDK|{eng[:10]}|{tr[:10]}"))
-    prefix = "🧠 **[Zayıf Kelime]**\n" if is_unknown_mode else "🎯 "
-    bot.send_message(chat_id, f"{prefix}**{eng}** kelimesinin Türkçe karşılığı nedir?", reply_markup=markup, parse_mode="Markdown")
+    prefix = "🧠 [Zayıf Kelime]\n" if is_unknown_mode else "🎯 "
+    bot.send_message(chat_id, f"{prefix}{eng} kelimesinin Türkçe karşılığı nedir?", reply_markup=markup)
 
 # --- BUTON CEVAPLARI ---
 
@@ -472,37 +463,37 @@ def handle_callbacks(call):
         _, mode, status, eng, tr = data.split("|", 4)
         if status == "C":
             update_score(uid, True)
-            extra = "\n✨ *Bu kelimeyi öğrendin, listeden kaldırıldı!*" if mode == "U" else ""
+            extra = "\n✨ Bu kelimeyi öğrendin, listeden kaldırıldı!" if mode == "U" else ""
             if mode == "U":
                 remove_unknown_word(uid, eng)
-            bot.edit_message_text(f"✅ **Doğru!**\n\n🇬🇧 **{eng}** = 🇹🇷 **{tr}**{extra}", chat_id=cid, message_id=mid, parse_mode="Markdown")
+            bot.edit_message_text(f"✅ Doğru!\n\n🇬🇧 {eng} = 🇹🇷 {tr}{extra}", chat_id=cid, message_id=mid)
         elif status == "W":
             update_score(uid, False)
             add_unknown_word(uid, eng, tr)
-            bot.edit_message_text(f"❌ **Yanlış!**\n\n🇬🇧 **{eng}** kelimesinin doğrusu: 🇹🇷 **{tr}**\n\n📌 *Zayıf kelimeler listene eklendi.*", chat_id=cid, message_id=mid, parse_mode="Markdown")
+            bot.edit_message_text(f"❌ Yanlış!\n\n🇬🇧 {eng} kelimesinin doğrusu: 🇹🇷 {tr}\n\n📌 Zayıf kelimeler listene eklendi.", chat_id=cid, message_id=mid)
         elif status == "IDK":
             add_unknown_word(uid, eng, tr)
-            bot.edit_message_text(f"💡 **Doğrusu:**\n\n🇬🇧 **{eng}** = 🇹🇷 **{tr}**\n\n📌 *Zayıf kelimeler listene eklendi.*", chat_id=cid, message_id=mid, parse_mode="Markdown")
+            bot.edit_message_text(f"💡 Doğrusu:\n\n🇬🇧 {eng} = 🇹🇷 {tr}\n\n📌 Zayıf kelimeler listene eklendi.", chat_id=cid, message_id=mid)
 
     elif data.startswith("cw:"):
         k = data.split(":")[1]
         cat = CATEGORY_DATA.get(k)
         if cat:
-            txt = f"{cat['title']} - **Kelimeler**:\n\n" + "\n".join([f"• **{e}**: {t}" for e, t in cat['words']])
-            bot.send_message(cid, txt, parse_mode="Markdown")
+            txt = f"{cat['title']} - Kelimeler:\n\n" + "\n".join([f"• {e}: {t}" for e, t in cat['words']])
+            bot.send_message(cid, txt)
 
     elif data.startswith("cs:"):
         k = data.split(":")[1]
         cat = CATEGORY_DATA.get(k)
         if cat:
-            txt = f"{cat['title']} - **Kalıp Cümleler**:\n\n" + "\n\n".join([f"💬 **{e}**\n↳ *{t}*" for e, t in cat['sentences']])
-            bot.send_message(cid, txt, parse_mode="Markdown")
+            txt = f"{cat['title']} - Kalıp Cümleler:\n\n" + "\n\n".join([f"💬 {e}\n↳ {t}" for e, t in cat['sentences']])
+            bot.send_message(cid, txt)
 
     elif data.startswith("gm:"):
         lvl = data.split(":")[1]
         lesson = GRAMMAR_LESSONS.get(lvl)
         if lesson:
-            bot.send_message(cid, lesson, parse_mode="Markdown")
+            bot.send_message(cid, lesson)
 
 # --- BAŞLATMA ---
 
