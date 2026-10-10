@@ -49,19 +49,193 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-# --- SORULAR VE DERSLER (Alt tireler Markdown bozmaması için nokta yapıldı) ---
+# --- 25 SORULUK KAPSAMLI SEVİYE BELİRLEME SINAVI ---
 
 PLACEMENT_QUESTIONS = [
-    {"q": "She ....... from Spain.", "options": ["is", "are", "am", "be"], "a": "is", "lvl": "A1"},
-    {"q": "I ....... a movie yesterday night.", "options": ["watched", "watch", "watching", "have watched"], "a": "watched", "lvl": "A1"},
-    {"q": "There aren't ....... apples left in the basket.", "options": ["any", "some", "much", "an"], "a": "any", "lvl": "A2"},
-    {"q": "He was cooking dinner while she ....... a book.", "options": ["was reading", "reads", "has read", "is reading"], "a": "was reading", "lvl": "A2"},
-    {"q": "If it rains tomorrow, we ....... the match.", "options": ["will cancel", "canceled", "cancel", "would cancel"], "a": "will cancel", "lvl": "B1"},
-    {"q": "I have lived in this city ....... 2018.", "options": ["since", "for", "in", "during"], "a": "since", "lvl": "B1"},
-    {"q": "By the time the police arrived, the thieves ....... .", "options": ["had escaped", "escaped", "have escaped", "escape"], "a": "had escaped", "lvl": "B2"},
-    {"q": "If I ....... you, I would take that offer immediately.", "options": ["were", "am", "will be", "had been"], "a": "were", "lvl": "B2"},
-    {"q": "Seldom ....... such an extraordinary performance.", "options": ["have I seen", "I saw", "I have seen", "saw I"], "a": "have I seen", "lvl": "C1"},
-    {"q": "The manager insisted that the report ....... submitted by noon.", "options": ["be", "is", "was", "will be"], "a": "be", "lvl": "C1"}
+    # A1 Seviyesi (1-5)
+    {
+        "q": "She ....... from Spain.",
+        "options": ["is", "are", "am", "be"],
+        "a": "is",
+        "lvl": "A1",
+        "exp": "'She' öznesi ile geniş zamanda 'to be' fiilinin 'is' hali kullanılır."
+    },
+    {
+        "q": "I ....... a movie yesterday night.",
+        "options": ["watched", "watch", "watching", "have watched"],
+        "a": "watched",
+        "lvl": "A1",
+        "exp": "'Yesterday' geçmiş zaman bildirir; düzenli 'watch' fiili '-ed' alarak 'watched' olur."
+    },
+    {
+        "q": "They ....... breakfast every morning at 8.",
+        "options": ["have", "has", "having", "had"],
+        "a": "have",
+        "lvl": "A1",
+        "exp": "'They' çoğul öznesi ile geniş zamanda fiilin yalın hali 'have' kullanılır."
+    },
+    {
+        "q": "Where ....... you live?",
+        "options": ["do", "does", "are", "is"],
+        "a": "do",
+        "lvl": "A1",
+        "exp": "Geniş zamanda 'you' öznesine soru sorarken yardımcı fiil 'do' olur."
+    },
+    {
+        "q": "This is my brother. ....... name is David.",
+        "options": ["His", "Her", "He", "Him"],
+        "a": "His",
+        "lvl": "A1",
+        "exp": "Erkekler için sahiplik zamiri 'His' (Onun) kullanılır."
+    },
+
+    # A2 Seviyesi (6-10)
+    {
+        "q": "There aren't ....... apples left in the basket.",
+        "options": ["any", "some", "much", "an"],
+        "a": "any",
+        "lvl": "A2",
+        "exp": "Olumsuz cümlelerde sayılabilen çoğul isimlerin önünde 'any' kullanılır."
+    },
+    {
+        "q": "He was cooking dinner while she ....... a book.",
+        "options": ["was reading", "reads", "has read", "is reading"],
+        "a": "was reading",
+        "lvl": "A2",
+        "exp": "Geçmişte aynı anda süren iki eylemde 'while' ile 'Past Continuous' (was/were V-ing) kullanılır."
+    },
+    {
+        "q": "London is ....... than Manchester.",
+        "options": ["bigger", "more big", "biggest", "more bigger"],
+        "a": "bigger",
+        "lvl": "A2",
+        "exp": "Tek heceli sıfatlar karşılaştırma yapılırken '-er' takısı alır (big -> bigger)."
+    },
+    {
+        "q": "We ....... go to the party because we were too tired.",
+        "options": ["couldn't", "can't", "mustn't", "won't"],
+        "a": "couldn't",
+        "lvl": "A2",
+        "exp": "Geçmişte yapamadığımız eylemler için 'couldn't' kullanılır."
+    },
+    {
+        "q": "She has lived here ....... 2020.",
+        "options": ["since", "for", "in", "from"],
+        "a": "since",
+        "lvl": "A2",
+        "exp": "Eylemin başlangıç noktası belirtildiğinde 'since' (den beri) kullanılır."
+    },
+
+    # B1 Seviyesi (11-15)
+    {
+        "q": "If it rains tomorrow, we ....... the match.",
+        "options": ["will cancel", "canceled", "cancel", "would cancel"],
+        "a": "will cancel",
+        "lvl": "B1",
+        "exp": "Type 1 koşul cümlesinde: If + Present Simple, gelecek zaman için 'will + V1' kullanılır."
+    },
+    {
+        "q": "I ....... my keys. I can't find them anywhere right now.",
+        "options": ["have lost", "lost", "had lost", "lose"],
+        "a": "have lost",
+        "lvl": "B1",
+        "exp": "Geçmişte olmuş ancak etkisi şu an devam eden durumlarda Present Perfect Tense kullanılır."
+    },
+    {
+        "q": "You ....... smoke inside the hospital. It is forbidden.",
+        "options": ["mustn't", "don't have to", "needn't", "shouldn't"],
+        "a": "mustn't",
+        "lvl": "B1",
+        "exp": "Yasaklama durumlarında 'mustn't' kullanılır ('don't have to' zorunluluk yok demektir)."
+    },
+    {
+        "q": "The book ....... by George Orwell in 1949.",
+        "options": ["was written", "wrote", "is written", "has written"],
+        "a": "was written",
+        "lvl": "B1",
+        "exp": "Geçmiş zaman edilgen (passive) çatıda 'was/were + V3' kullanılır."
+    },
+    {
+        "q": "I am looking forward to ....... from you soon.",
+        "options": ["hearing", "hear", "heard", "be heard"],
+        "a": "hearing",
+        "lvl": "B1",
+        "exp": "'Look forward to' kalıbından sonra fiil '-ing' takısı alır."
+    },
+
+    # B2 Seviyesi (16-20)
+    {
+        "q": "By the time the police arrived, the thieves ....... .",
+        "options": ["had escaped", "escaped", "have escaped", "escape"],
+        "a": "had escaped",
+        "lvl": "B2",
+        "exp": "Geçmişte bir andan daha önce gerçekleşen eylem için Past Perfect (had + V3) kullanılır."
+    },
+    {
+        "q": "If I ....... you, I would take that offer immediately.",
+        "options": ["were", "am", "will be", "had been"],
+        "a": "were",
+        "lvl": "B2",
+        "exp": "Type 2 hayali koşullarda tüm özneler için 'were' kullanımı tercih edilir."
+    },
+    {
+        "q": "She speaks English fluently, ....... she has never lived abroad.",
+        "options": ["although", "despite", "because", "unless"],
+        "a": "although",
+        "lvl": "B2",
+        "exp": "Cümle alan zıtlık bağlacı 'although' kullanılır ('despite' arkasından isim alır)."
+    },
+    {
+        "q": "You should avoid ....... unnecessary risks in business.",
+        "options": ["taking", "to take", "take", "taken"],
+        "a": "taking",
+        "lvl": "B2",
+        "exp": "'Avoid' fiilinden sonra gelen eylem daima Gerund (-ing) alır."
+    },
+    {
+        "q": "He ....... have caught the flight; traffic was completely blocked.",
+        "options": ["can't", "must", "should", "might"],
+        "a": "can't",
+        "lvl": "B2",
+        "exp": "Geçmişte bir olayın gerçekleşmesinin imkansız olduğunu anlatırken 'can't have V3' kullanılır."
+    },
+
+    # C1 Seviyesi (21-25)
+    {
+        "q": "Seldom ....... such an extraordinary performance.",
+        "options": ["have I seen", "I saw", "I have seen", "saw I"],
+        "a": "have I seen",
+        "lvl": "C1",
+        "exp": "Olumsuz zarflarla (seldom, rarely) başlayan devrik cümlelerde yardımcı fiil başa gelir."
+    },
+    {
+        "q": "The manager insisted that the report ....... submitted by noon.",
+        "options": ["be", "is", "was", "will be"],
+        "a": "be",
+        "lvl": "C1",
+        "exp": "Subjunctive yapısında 'insist that' sonrasında fiilin yalın hali (be) kullanılır."
+    },
+    {
+        "q": "Had they known about the crisis, they ....... differently.",
+        "options": ["would have acted", "acted", "would act", "will act"],
+        "a": "would have acted",
+        "lvl": "C1",
+        "exp": "Type 3 devrik koşul yapısında (Had + S + V3), ana cümlede 'would have + V3' gelir."
+    },
+    {
+        "q": "Not only ....... late, but he also forgot the key documents.",
+        "options": ["did he arrive", "he arrived", "has he arrived", "he did arrive"],
+        "a": "did he arrive",
+        "lvl": "C1",
+        "exp": "'Not only' ile başlayan devrik yapıda geçmiş zaman soru sırasını (did he arrive) alır."
+    },
+    {
+        "q": "The proposal was accepted, albeit ....... some reservations.",
+        "options": ["with", "for", "by", "in"],
+        "a": "with",
+        "lvl": "C1",
+        "exp": "'Albeit' (her ne kadar ... olsa da) sonrasında 'with some reservations' kalıbı kullanılır."
+    }
 ]
 
 CATEGORY_DATA = {
@@ -242,28 +416,54 @@ def run_placement_question(chat_id, user_id):
     try:
         state = active_placement_tests.get(user_id)
         if not state:
-            state = {"q_idx": 0, "score": 0}
+            state = {"q_idx": 0, "score": 0, "mistakes": []}
             active_placement_tests[user_id] = state
 
         idx = state["q_idx"]
-        if idx >= len(PLACEMENT_QUESTIONS):
+        total_q = len(PLACEMENT_QUESTIONS)
+
+        # Sınav bittiğinde analiz raporunu oluştur
+        if idx >= total_q:
             score = state["score"]
-            if score <= 2: final_lvl = "A1"
-            elif score <= 4: final_lvl = "A2"
-            elif score <= 7: final_lvl = "B1"
-            elif score <= 9: final_lvl = "B2"
+            mistakes = state.get("mistakes", [])
+
+            # 25 soruya göre seviye belirleme
+            if score <= 6: final_lvl = "A1"
+            elif score <= 12: final_lvl = "A2"
+            elif score <= 18: final_lvl = "B1"
+            elif score <= 22: final_lvl = "B2"
             else: final_lvl = "C1"
 
             set_user_level(user_id, final_lvl)
             active_placement_tests.pop(user_id, None)
-            bot.send_message(
-                chat_id,
+
+            result_msg = (
                 f"🏁 Seviye Belirleme Sınavı Tamamlandı!\n\n"
-                f"✅ Doğru Sayın: {score} / 10\n"
-                f"🎯 Belirlenen Seviyen: {final_lvl}\n\n"
-                f"Profilin güncellendi!",
-                reply_markup=get_main_keyboard()
+                f"📊 Doğru Sayın: {score} / {total_q}\n"
+                f"🎯 Belirlenen Seviyen: {final_lvl}\n"
+                f"Profilin başarıyla güncellendi!\n"
             )
+            bot.send_message(chat_id, result_msg, reply_markup=get_main_keyboard())
+
+            # Yanlış yapılan soruların detaylı çözümü
+            if mistakes:
+                report = "📖 YANLIŞ CEVAPLAR VE DOĞRU ÇÖZÜMLERİ:\n" + ("=" * 35) + "\n\n"
+                for m in mistakes:
+                    report += (
+                        f"📌 Soru {m['q_num']} ({m['lvl']}): {m['q']}\n"
+                        f"❌ Senin Cevabın: {m['user_ans']}\n"
+                        f"✅ Doğru Cevap: {m['correct_ans']}\n"
+                        f"💡 Açıklama: {m['exp']}\n\n"
+                    )
+                # Mesaj Telegram limitini aşarsa parça parça gönder
+                if len(report) > 4000:
+                    chunks = [report[i:i+3800] for i in range(0, len(report), 3800)]
+                    for c in chunks:
+                        bot.send_message(chat_id, c)
+                else:
+                    bot.send_message(chat_id, report)
+            else:
+                bot.send_message(chat_id, "🌟 Kusursuz! Bütün soruları doğru cevapladın!")
             return
 
         q_data = PLACEMENT_QUESTIONS[idx]
@@ -271,14 +471,13 @@ def run_placement_question(chat_id, user_id):
         for i, opt in enumerate(q_data["options"]):
             markup.add(types.InlineKeyboardButton(opt, callback_data=f"PT|{i}"))
 
-        # parse_mode kaldırıldı, alt tire ve işaretler Telegram'ı patlatmayacak
         bot.send_message(
             chat_id,
-            f"📝 Soru {idx + 1}/10 ({q_data['lvl']}):\n\n{q_data['q']}",
+            f"📝 Soru {idx + 1}/{total_q} ({q_data['lvl']}):\n\n{q_data['q']}",
             reply_markup=markup
         )
     except Exception as e:
-        bot.send_message(chat_id, f"Sınav başlatılırken hata oluştu: {e}")
+        bot.send_message(chat_id, f"Sınav çalıştırılırken hata oluştu: {e}")
 
 # --- MESAJ YÖNLENDİRİCİ ---
 
@@ -309,7 +508,7 @@ def handle_text_menu(message):
     # 1. SEVİYE BELİRLEME SINAVI
     if "seviye" in cleaned or "sınav" in cleaned or "sinav" in cleaned:
         ai_chat_users.discard(uid)
-        active_placement_tests[uid] = {"q_idx": 0, "score": 0}
+        active_placement_tests[uid] = {"q_idx": 0, "score": 0, "mistakes": []}
         run_placement_question(message.chat.id, uid)
         return
 
@@ -436,7 +635,6 @@ def handle_callbacks(call):
         bot.answer_callback_query(call.id, "⛔ Yetkisiz erişim!", show_alert=True)
         return
 
-    bot.answer_callback_query(call.id)
     data = call.data
     cid = call.message.chat.id
     mid = call.message.message_id
@@ -449,17 +647,38 @@ def handle_callbacks(call):
             idx = state["q_idx"]
             if idx < len(PLACEMENT_QUESTIONS):
                 q_data = PLACEMENT_QUESTIONS[idx]
-                if q_data["options"][opt_idx] == q_data["a"]:
+                chosen = q_data["options"][opt_idx]
+                correct = q_data["a"]
+
+                # Şıkka basıldığı anda anlık geri bildirim pop-up'ı
+                if chosen == correct:
                     state["score"] += 1
+                    bot.answer_callback_query(call.id, "✅ DOĞRU!", show_alert=False)
+                else:
+                    state["mistakes"].append({
+                        "q_num": idx + 1,
+                        "lvl": q_data["lvl"],
+                        "q": q_data["q"],
+                        "user_ans": chosen,
+                        "correct_ans": correct,
+                        "exp": q_data["exp"]
+                    })
+                    bot.answer_callback_query(call.id, f"❌ YANLIŞ! (Doğrusu: {correct})", show_alert=False)
+
                 state["q_idx"] += 1
                 try:
                     bot.delete_message(cid, mid)
                 except:
                     pass
                 run_placement_question(cid, uid)
+            else:
+                bot.answer_callback_query(call.id)
+        else:
+            bot.answer_callback_query(call.id)
 
     # Kelime Testi Şıkları
     elif data.startswith("Q|"):
+        bot.answer_callback_query(call.id)
         _, mode, status, eng, tr = data.split("|", 4)
         if status == "C":
             update_score(uid, True)
@@ -476,6 +695,7 @@ def handle_callbacks(call):
             bot.edit_message_text(f"💡 Doğrusu:\n\n🇬🇧 {eng} = 🇹🇷 {tr}\n\n📌 Zayıf kelimeler listene eklendi.", chat_id=cid, message_id=mid)
 
     elif data.startswith("cw:"):
+        bot.answer_callback_query(call.id)
         k = data.split(":")[1]
         cat = CATEGORY_DATA.get(k)
         if cat:
@@ -483,6 +703,7 @@ def handle_callbacks(call):
             bot.send_message(cid, txt)
 
     elif data.startswith("cs:"):
+        bot.answer_callback_query(call.id)
         k = data.split(":")[1]
         cat = CATEGORY_DATA.get(k)
         if cat:
@@ -490,6 +711,7 @@ def handle_callbacks(call):
             bot.send_message(cid, txt)
 
     elif data.startswith("gm:"):
+        bot.answer_callback_query(call.id)
         lvl = data.split(":")[1]
         lesson = GRAMMAR_LESSONS.get(lvl)
         if lesson:
