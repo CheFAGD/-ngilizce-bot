@@ -239,46 +239,51 @@ def get_main_keyboard():
 # --- SEVİYE SINAVI ÇALIŞTIRICI ---
 
 def run_placement_question(chat_id, user_id):
-    state = active_placement_tests.get(user_id)
-    if not state:
-        return
+    try:
+        state = active_placement_tests.get(user_id)
+        if not state:
+            state = {"q_idx": 0, "score": 0}
+            active_placement_tests[user_id] = state
 
-    idx = state["q_idx"]
-    if idx >= len(PLACEMENT_QUESTIONS):
-        score = state["score"]
-        if score <= 2: final_lvl = "A1"
-        elif score <= 4: final_lvl = "A2"
-        elif score <= 7: final_lvl = "B1"
-        elif score <= 9: final_lvl = "B2"
-        else: final_lvl = "C1"
+        idx = state["q_idx"]
+        if idx >= len(PLACEMENT_QUESTIONS):
+            score = state["score"]
+            if score <= 2: final_lvl = "A1"
+            elif score <= 4: final_lvl = "A2"
+            elif score <= 7: final_lvl = "B1"
+            elif score <= 9: final_lvl = "B2"
+            else: final_lvl = "C1"
 
-        set_user_level(user_id, final_lvl)
-        active_placement_tests.pop(user_id, None)
+            set_user_level(user_id, final_lvl)
+            active_placement_tests.pop(user_id, None)
+            bot.send_message(
+                chat_id,
+                f"🏁 **Seviye Belirleme Sınavı Tamamlandı!**\n\n"
+                f"✅ Doğru Sayın: **{score} / 10**\n"
+                f"🎯 Belirlenen Seviyen: **{final_lvl}**\n\n"
+                f"Profilin güncellendi!",
+                reply_markup=get_main_keyboard(),
+                parse_mode="Markdown"
+            )
+            return
+
+        q_data = PLACEMENT_QUESTIONS[idx]
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        for i, opt in enumerate(q_data["options"]):
+            markup.add(types.InlineKeyboardButton(opt, callback_data=f"PT|{i}"))
+
         bot.send_message(
             chat_id,
-            f"🏁 **Seviye Belirleme Sınavı Tamamlandı!**\n\n"
-            f"✅ Doğru Sayın: **{score} / 10**\n"
-            f"🎯 Belirlenen Seviyen: **{final_lvl}**\n\n"
-            f"Profilin güncellendi!",
+            f"📝 **Soru {idx + 1}/10 ({q_data['lvl']}):**\n\n{q_data['q']}",
+            reply_markup=markup,
             parse_mode="Markdown"
         )
-        return
-
-    q_data = PLACEMENT_QUESTIONS[idx]
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    for i, opt in enumerate(q_data["options"]):
-        markup.add(types.InlineKeyboardButton(opt, callback_data=f"PT|{i}"))
-
-    bot.send_message(
-        chat_id,
-        f"📝 **Soru {idx + 1}/10 ({q_data['lvl']}):**\n\n{q_data['q']}",
-        reply_markup=markup,
-        parse_mode="Markdown"
-    )
+    except Exception as e:
+        bot.send_message(chat_id, f"Sınav başlatılırken hata oluştu: {e}")
 
 # --- MESAJ YÖNLENDİRİCİ ---
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start', 'sbs'])
 def handle_start(message):
     uid = message.from_user.id
     if not is_authorized(uid):
@@ -287,6 +292,12 @@ def handle_start(message):
 
     get_user_profile(uid)
     ai_chat_users.discard(uid)
+
+    if message.text and message.text.startswith('/sbs'):
+        active_placement_tests[uid] = {"q_idx": 0, "score": 0}
+        run_placement_question(message.chat.id, uid)
+        return
+
     welcome_text = (
         f"Selam **{message.from_user.first_name}**! 🇬🇧\n\n"
         "AI Destekli İngilizce Koçuna hoş geldin! Aşağıdaki butonları kullanarak hemen başlayabilirsin."
@@ -299,18 +310,19 @@ def handle_text_menu(message):
     if not is_authorized(uid):
         return
 
-    raw_text = message.text or ""
-    txt = raw_text.lower()
+    raw_text = (message.text or "")
+    # Tüm boşlukları, enterları ve gereksiz karakterleri temizleyip normalize edelim
+    cleaned = raw_text.replace("\n", " ").strip().lower()
 
-    # 1. SEVİYE BELİRLEME SINAVI BUTONU (Tam ve parçalı eşleşme)
-    if "seviye belirleme" in txt or "sınav" in txt or "sinav" in txt:
+    # 1. SEVİYE BELİRLEME SINAVI BUTONU (Her formatı, enterlı halini ve kelimeyi yakalar)
+    if "seviye" in cleaned or "sınav" in cleaned or "sinav" in cleaned:
         ai_chat_users.discard(uid)
         active_placement_tests[uid] = {"q_idx": 0, "score": 0}
         run_placement_question(message.chat.id, uid)
         return
 
     # 2. AI KOÇ BUTONU
-    if "ai koç" in txt or "ai koc" in txt:
+    if "ai koç" in cleaned or "ai koc" in cleaned:
         ai_chat_users.add(uid)
         bot.send_message(
             message.chat.id,
@@ -322,13 +334,13 @@ def handle_text_menu(message):
         return
 
     # 3. KELİME ÇÖZ
-    if "kelime çöz" in txt or "kelime coz" in txt:
+    if "kelime" in cleaned and "çöz" in cleaned or "coz" in cleaned:
         ai_chat_users.discard(uid)
         send_quiz_question(message.chat.id, is_unknown_mode=False)
         return
 
     # 4. ZAYIF KELİMELERİM
-    if "zayıf" in txt or "zayif" in txt:
+    if "zayıf" in cleaned or "zayif" in cleaned:
         ai_chat_users.discard(uid)
         count = get_unknown_words_count(uid)
         if count == 0:
@@ -338,7 +350,7 @@ def handle_text_menu(message):
         return
 
     # 5. KATEGORİK KELİMELER
-    if "kategori" in txt:
+    if "kategori" in cleaned:
         ai_chat_users.discard(uid)
         markup = types.InlineKeyboardMarkup(row_width=2)
         for cat_key, cat_val in CATEGORY_DATA.items():
@@ -350,7 +362,7 @@ def handle_text_menu(message):
         return
 
     # 6. GRAMER DERSLERİ
-    if "gramer" in txt:
+    if "gramer" in cleaned:
         ai_chat_users.discard(uid)
         markup = types.InlineKeyboardMarkup(row_width=2)
         markup.add(
@@ -363,7 +375,7 @@ def handle_text_menu(message):
         return
 
     # 7. PROFİLİM & SKOR
-    if "profil" in txt or "skor" in txt:
+    if "profil" in cleaned or "skor" in cleaned:
         ai_chat_users.discard(uid)
         prof = get_user_profile(uid)
         lvl, c, w = prof[0], prof[1], prof[2]
@@ -381,7 +393,7 @@ def handle_text_menu(message):
         bot.send_message(message.chat.id, msg, parse_mode="Markdown")
         return
 
-    # 8. AI SOHBET CEVABI (Sadece kullanıcı AI Koç butonuna basmışsa devreye girer)
+    # 8. AI SOHBET CEVABI
     if uid in ai_chat_users:
         if not ai_model:
             bot.send_message(message.chat.id, "⚠️ AI anahtarı tanımlanmamış.")
