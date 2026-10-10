@@ -15,7 +15,6 @@ GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
 bot = telebot.TeleBot(TOKEN)
 
 # --- İZİN VERİLEN KULLANICILAR (WHITELIST) ---
-# Kardeşin de @userinfobot'tan ID'sini alınca buradaki 0 yerine onun ID'sini yazabilirsin:
 ALLOWED_USERS = [8022316805, 0]
 
 def is_authorized(user_id):
@@ -23,19 +22,21 @@ def is_authorized(user_id):
 
 # Gemini Yapılandırması
 if GEMINI_KEY:
-    genai.configure(api_key=GEMINI_KEY)
-    ai_model = genai.GenerativeModel("gemini-1.5-flash")
+    try:
+        genai.configure(api_key=GEMINI_KEY)
+        ai_model = genai.GenerativeModel("gemini-1.5-flash")
+    except Exception as e:
+        print("Gemini baglanti hatasi:", e)
+        ai_model = None
 else:
     ai_model = None
 
 DB_FILE = "english_bot.db"
 EXCEL_FILE = "translated.xlsx"
 
-# Kullanıcı durumları
-active_placement_tests = {}
 ai_chat_users = set()
 
-# --- FLASK WEB SUNUCUSU (RENDER & UPTIMEROBOT) ---
+# --- FLASK WEB SUNUCUSU ---
 app = Flask(__name__)
 
 @app.route('/')
@@ -162,7 +163,9 @@ def init_database():
             user_id INTEGER PRIMARY KEY,
             level TEXT DEFAULT 'A1',
             correct_count INTEGER DEFAULT 0,
-            wrong_count INTEGER DEFAULT 0
+            wrong_count INTEGER DEFAULT 0,
+            pt_index INTEGER DEFAULT -1,
+            pt_score INTEGER DEFAULT 0
         )
     """)
     cursor.execute("""
@@ -174,6 +177,14 @@ def init_database():
             UNIQUE(user_id, english)
         )
     """)
+    
+    # pt_index ve pt_score kolonları eski tablolarda yoksa ekleyelim
+    try:
+        cursor.execute("ALTER TABLE user_profiles ADD COLUMN pt_index INTEGER DEFAULT -1")
+        cursor.execute("ALTER TABLE user_profiles ADD COLUMN pt_score INTEGER DEFAULT 0")
+    except:
+        pass
+
     cursor.execute("SELECT COUNT(*) FROM words")
     count = cursor.fetchone()[0]
     if count == 0 and os.path.exists(EXCEL_FILE):
@@ -196,9 +207,9 @@ def init_database():
 def get_user_profile(user_id):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("INSERT OR IGNORE INTO user_profiles (user_id, level, correct_count, wrong_count) VALUES (?, 'A1', 0, 0)", (user_id,))
+    cursor.execute("INSERT OR IGNORE INTO user_profiles (user_id, level, correct_count, wrong_count, pt_index, pt_score) VALUES (?, 'A1', 0, 0, -1, 0)", (user_id,))
     conn.commit()
-    cursor.execute("SELECT level, correct_count, wrong_count FROM user_profiles WHERE user_id = ?", (user_id,))
+    cursor.execute("SELECT level, correct_count, wrong_count, pt_index, pt_score FROM user_profiles WHERE user_id = ?", (user_id,))
     res = cursor.fetchone()
     conn.close()
     return res
@@ -217,6 +228,13 @@ def update_score(user_id, is_correct):
         cursor.execute("UPDATE user_profiles SET correct_count = correct_count + 1 WHERE user_id = ?", (user_id,))
     else:
         cursor.execute("UPDATE user_profiles SET wrong_count = wrong_count + 1 WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+def set_pt_state(user_id, idx, score):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE user_profiles SET pt_index = ?, pt_score = ? WHERE user_id = ?", (idx, score, user_id))
     conn.commit()
     conn.close()
 
@@ -291,9 +309,49 @@ def get_main_keyboard():
     )
     return keyboard
 
+# --- SEVİYE SINAVI SORU GÖNDERME ---
+
+def send_placement_question(chat_id, user_id, idx, score):
+    if idx >= len(PLACEMENT_QUESTIONS):
+        if score <= 2:
+            final_lvl = "A1"
+        elif score <= 4:
+            final_lvl = "A2"
+        elif score <= 7:
+            final_lvl = "B1"
+        elif score <= 9:
+            final_lvl = "B2"
+        else:
+            final_lvl = "C1"
+
+        set_user_level(user_id, final_lvl)
+        set_pt_state(user_id, -1, 0)
+        bot.send_message(
+            chat_id,
+            f"🏁 **Seviye Belirleme Sınavı Bitti!**\n\n"
+            f"📊 Doğru Sayın: **{score} / 10**\n"
+            f"🎖 Belirlenen Seviyen: **{final_lvl}**\n\n"
+            f"Harika! Profil seviyen **{final_lvl}** olarak kaydedildi.",
+            parse_mode="Markdown"
+        )
+        return
+
+    q_data = PLACEMENT_QUESTIONS[idx]
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    for i, opt in enumerate(q_data["options"]):
+        cb = f"PT|{i}"
+        markup.add(types.InlineKeyboardButton(opt, callback_data=cb))
+
+    bot.send_message(
+        chat_id,
+        f"📝 **Soru {idx + 1}/10 ({q_data['lvl']}):**\n\n{q_data['q']}",
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
+
 # --- KOMUT VE MESAJ YÖNLENDİRME ---
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start', 'sbs'])
 def handle_start(message):
     uid = message.from_user.id
     if not is_authorized(uid):
@@ -302,6 +360,12 @@ def handle_start(message):
 
     get_user_profile(uid)
     ai_chat_users.discard(uid)
+
+    if message.text == '/sbs':
+        set_pt_state(uid, 0, 0)
+        send_placement_question(message.chat.id, uid, 0, 0)
+        return
+
     welcome_text = (
         f"Selam **{message.from_user.first_name}**! 🇬🇧\n\n"
         "AI Destekli İngilizce Koçuna hoş geldin! Aşağıdaki butonları kullanarak hemen öğrenmeye başlayabilirsin."
@@ -314,9 +378,9 @@ def handle_text_menu(message):
     if not is_authorized(uid):
         return
 
-    txt = message.text
+    txt = message.text or ""
 
-    if txt == "🤖 AI Koç (Soru Sor / Cümle Düzelt)":
+    if "AI Koç" in txt:
         ai_chat_users.add(uid)
         bot.send_message(
             message.chat.id,
@@ -330,11 +394,8 @@ def handle_text_menu(message):
         )
         return
 
-    menu_buttons = [
-        "📚 Kelime Çöz", "🧠 Zayıf Kelimelerim", "🗂 Kategorik Kelimeler",
-        "📖 Gramer Dersleri", "🎓 Seviye Belirleme Sınavı", "📊 Profilim & Skor"
-    ]
-    if uid in ai_chat_users and txt not in menu_buttons:
+    is_menu_btn = any(key in txt for key in ["Kelime Çöz", "Zayıf Kelimelerim", "Kategorik Kelimeler", "Gramer Dersleri", "Seviye Belirleme", "Profilim"])
+    if uid in ai_chat_users and not is_menu_btn:
         if not ai_model:
             bot.send_message(message.chat.id, "⚠️ AI anahtarı tanımlanmamış. Render Environment ayarlarını kontrol edin.")
             return
@@ -356,17 +417,21 @@ def handle_text_menu(message):
 
     ai_chat_users.discard(uid)
 
-    if txt == "📚 Kelime Çöz":
+    if "Seviye Belirleme" in txt or "Sınavı" in txt or "Sinavi" in txt:
+        set_pt_state(uid, 0, 0)
+        send_placement_question(message.chat.id, uid, 0, 0)
+
+    elif "Kelime Çöz" in txt:
         send_quiz_question(message.chat.id, is_unknown_mode=False)
 
-    elif txt == "🧠 Zayıf Kelimelerim":
+    elif "Zayıf Kelimelerim" in txt:
         count = get_unknown_words_count(uid)
         if count == 0:
             bot.send_message(message.chat.id, "🎉 **Harika!** Zayıf kelimeler listende henüz kelime yok.", parse_mode="Markdown")
         else:
             send_quiz_question(message.chat.id, is_unknown_mode=True)
 
-    elif txt == "🗂 Kategorik Kelimeler":
+    elif "Kategorik Kelimeler" in txt:
         markup = types.InlineKeyboardMarkup(row_width=2)
         for cat_key, cat_val in CATEGORY_DATA.items():
             markup.add(
@@ -375,7 +440,7 @@ def handle_text_menu(message):
             )
         bot.send_message(message.chat.id, "📌 **Çalışmak istediğin alanı seç:**", reply_markup=markup, parse_mode="Markdown")
 
-    elif txt == "📖 Gramer Dersleri":
+    elif "Gramer Dersleri" in txt:
         markup = types.InlineKeyboardMarkup(row_width=2)
         markup.add(
             types.InlineKeyboardButton("A1: To Be", callback_data="gm:A1"),
@@ -385,12 +450,9 @@ def handle_text_menu(message):
         )
         bot.send_message(message.chat.id, "📘 **Gramer Seviyesini Seç:**", reply_markup=markup, parse_mode="Markdown")
 
-    elif txt == "🎓 Seviye Belirleme Sınavı":
-        active_placement_tests[uid] = {"q_idx": 0, "score": 0}
-        send_placement_question(message.chat.id, uid)
-
-    elif txt == "📊 Profilim & Skor":
-        lvl, c, w = get_user_profile(uid)
+    elif "Profilim" in txt:
+        prof = get_user_profile(uid)
+        lvl, c, w = prof[0], prof[1], prof[2]
         un_count = get_unknown_words_count(uid)
         total = c + w
         rate = f"%{int((c / total) * 100)}" if total > 0 else "%0"
@@ -421,71 +483,50 @@ def send_quiz_question(chat_id, is_unknown_mode=False):
     markup = types.InlineKeyboardMarkup(row_width=1)
     for opt in options:
         status = "C" if opt == tr else "W"
-        cb = f"Q|{mode}|{status}|{eng[:12]}|{tr[:12]}"
+        cb = f"Q|{mode}|{status}|{eng[:10]}|{tr[:10]}"
         markup.add(types.InlineKeyboardButton(opt, callback_data=cb))
     
-    idk_cb = f"Q|{mode}|IDK|{eng[:12]}|{tr[:12]}"
+    idk_cb = f"Q|{mode}|IDK|{eng[:10]}|{tr[:10]}"
     markup.add(types.InlineKeyboardButton("🤷‍♂️ Bilmiyorum", callback_data=idk_cb))
 
     prefix = "🧠 **[Zayıf Kelime]**\n" if is_unknown_mode else "🎯 "
     bot.send_message(chat_id, f"{prefix}**{eng}** kelimesinin Türkçe karşılığı nedir?", reply_markup=markup, parse_mode="Markdown")
 
-# --- SEVİYE SINAVI ---
-
-def send_placement_question(chat_id, user_id):
-    state = active_placement_tests.get(user_id)
-    if not state:
-        return
-    idx = state["q_idx"]
-    if idx >= len(PLACEMENT_QUESTIONS):
-        score = state["score"]
-        if score <= 2:
-            final_lvl = "A1"
-        elif score <= 4:
-            final_lvl = "A2"
-        elif score <= 7:
-            final_lvl = "B1"
-        elif score <= 9:
-            final_lvl = "B2"
-        else:
-            final_lvl = "C1"
-        set_user_level(user_id, final_lvl)
-        del active_placement_tests[user_id]
-        bot.send_message(
-            chat_id,
-            f"🏁 **Sınav Bitti!**\n\nDoğru: **{score}/10**\nBelirlenen Seviyen: **{final_lvl}**",
-            parse_mode="Markdown"
-        )
-        return
-
-    q_data = PLACEMENT_QUESTIONS[idx]
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    for opt in q_data["options"]:
-        cb = f"PT|{opt}|{q_data['a']}"
-        markup.add(types.InlineKeyboardButton(opt, callback_data=cb))
-
-    bot.send_message(
-        chat_id,
-        f"📝 **Soru {idx + 1}/10 ({q_data['lvl']}):**\n\n{q_data['q']}",
-        reply_markup=markup,
-        parse_mode="Markdown"
-    )
-
 # --- BUTON CEVAPLARI ---
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
-    if not is_authorized(call.from_user.id):
+    uid = call.from_user.id
+    if not is_authorized(uid):
         bot.answer_callback_query(call.id, "⛔ Yetkisiz erişim!", show_alert=True)
         return
 
     bot.answer_callback_query(call.id)
     data = call.data
-    uid = call.from_user.id
     cid = call.message.chat.id
     mid = call.message.message_id
 
-    if data.startswith("Q|"):
+    # 1. Seviye Belirleme Sınavı Cevapları
+    if data.startswith("PT|"):
+        opt_idx = int(data.split("|")[1])
+        prof = get_user_profile(uid)
+        idx, score = prof[3], prof[4]
+
+        if idx >= 0 and idx < len(PLACEMENT_QUESTIONS):
+            q_data = PLACEMENT_QUESTIONS[idx]
+            chosen_word = q_data["options"][opt_idx]
+            if chosen_word == q_data["a"]:
+                score += 1
+            next_idx = idx + 1
+            set_pt_state(uid, next_idx, score)
+            try:
+                bot.delete_message(cid, mid)
+            except:
+                pass
+            send_placement_question(cid, uid, next_idx, score)
+
+    # 2. Kelime Testi Cevapları
+    elif data.startswith("Q|"):
         _, mode, status, eng, tr = data.split("|", 4)
         if status == "C":
             update_score(uid, True)
@@ -497,21 +538,12 @@ def handle_callbacks(call):
         elif status == "W":
             update_score(uid, False)
             add_unknown_word(uid, eng, tr)
-            bot.edit_message_text(f"❌ **Yanlış!**\n\n🇬🇧 **{eng}** = 🇹🇷 **{tr}**\n\n📌 *Zayıf kelimeler listene eklendi.*", chat_id=cid, message_id=mid, parse_mode="Markdown")
+            bot.edit_message_text(f"❌ **Yanlış!**\n\n🇬🇧 **{eng}** kelimesinin doğrusu: 🇹🇷 **{tr}**\n\n📌 *Zayıf kelimeler listene eklendi.*", chat_id=cid, message_id=mid, parse_mode="Markdown")
         elif status == "IDK":
             add_unknown_word(uid, eng, tr)
             bot.edit_message_text(f"💡 **Doğrusu:**\n\n🇬🇧 **{eng}** = 🇹🇷 **{tr}**\n\n📌 *Zayıf kelimeler listene eklendi.*", chat_id=cid, message_id=mid, parse_mode="Markdown")
 
-    elif data.startswith("PT|"):
-        _, chosen, ans = data.split("|", 2)
-        state = active_placement_tests.get(uid)
-        if state:
-            if chosen == ans:
-                state["score"] += 1
-            state["q_idx"] += 1
-            bot.delete_message(cid, mid)
-            send_placement_question(cid, uid)
-
+    # 3. Kategori Kelimeleri
     elif data.startswith("cw:"):
         k = data.split(":")[1]
         cat = CATEGORY_DATA.get(k)
@@ -521,6 +553,7 @@ def handle_callbacks(call):
                 txt += f"• **{eng}**: {tr}\n"
             bot.send_message(cid, txt, parse_mode="Markdown")
 
+    # 4. Kategori Cümleleri
     elif data.startswith("cs:"):
         k = data.split(":")[1]
         cat = CATEGORY_DATA.get(k)
@@ -530,6 +563,7 @@ def handle_callbacks(call):
                 txt += f"💬 **{eng}**\n↳ *{tr}*\n\n"
             bot.send_message(cid, txt, parse_mode="Markdown")
 
+    # 5. Gramer Konu Anlatımı
     elif data.startswith("gm:"):
         lvl = data.split(":")[1]
         lesson = GRAMMAR_LESSONS.get(lvl)
