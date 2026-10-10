@@ -14,6 +14,13 @@ GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 bot = telebot.TeleBot(TOKEN)
 
+# --- İZİN VERİLEN KULLANICILAR (WHITELIST) ---
+# Kardeşin de @userinfobot'tan ID'sini alınca buradaki 0 yerine onun ID'sini yazabilirsin:
+ALLOWED_USERS = [8022316805, 0]
+
+def is_authorized(user_id):
+    return user_id in ALLOWED_USERS
+
 # Gemini Yapılandırması
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
@@ -26,7 +33,7 @@ EXCEL_FILE = "translated.xlsx"
 
 # Kullanıcı durumları
 active_placement_tests = {}
-ai_chat_users = set()  # AI koç modunda olan kullanıcılar
+ai_chat_users = set()
 
 # --- FLASK WEB SUNUCUSU (RENDER & UPTIMEROBOT) ---
 app = Flask(__name__)
@@ -288,8 +295,13 @@ def get_main_keyboard():
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-    get_user_profile(message.from_user.id)
-    ai_chat_users.discard(message.from_user.id)
+    uid = message.from_user.id
+    if not is_authorized(uid):
+        bot.send_message(message.chat.id, "⛔ **Erişim Engellendi:** Bu bot sadece yetkili kullanıcılara özeldir.", parse_mode="Markdown")
+        return
+
+    get_user_profile(uid)
+    ai_chat_users.discard(uid)
     welcome_text = (
         f"Selam **{message.from_user.first_name}**! 🇬🇧\n\n"
         "AI Destekli İngilizce Koçuna hoş geldin! Aşağıdaki butonları kullanarak hemen öğrenmeye başlayabilirsin."
@@ -299,6 +311,9 @@ def handle_start(message):
 @bot.message_handler(func=lambda msg: True)
 def handle_text_menu(message):
     uid = message.from_user.id
+    if not is_authorized(uid):
+        return
+
     txt = message.text
 
     if txt == "🤖 AI Koç (Soru Sor / Cümle Düzelt)":
@@ -315,22 +330,21 @@ def handle_text_menu(message):
         )
         return
 
-    # Kullanıcı AI modundaysa ve menü butonlarından birine basmadıysa
     menu_buttons = [
         "📚 Kelime Çöz", "🧠 Zayıf Kelimelerim", "🗂 Kategorik Kelimeler",
         "📖 Gramer Dersleri", "🎓 Seviye Belirleme Sınavı", "📊 Profilim & Skor"
     ]
     if uid in ai_chat_users and txt not in menu_buttons:
         if not ai_model:
-            bot.send_message(message.chat.id, "⚠️ AI anahtarı henüz tanımlanmamış. Lütfen Render ortam değişkenlerini kontrol edin.")
+            bot.send_message(message.chat.id, "⚠️ AI anahtarı tanımlanmamış. Render Environment ayarlarını kontrol edin.")
             return
 
         bot.send_chat_action(message.chat.id, 'typing')
         prompt = (
             "Sen uzman, teşvik edici ve samimi bir İngilizce öğretmenisin. "
             "Kullanıcının yazdığı İngilizce cümleyi veya soruyu analiz et. "
-            "Eğer cümlede gramer veya kelime hatası varsa doğrusunu göster ve nedenini Türkçe olarak net, madde imleriyle açıkla. "
-            "Eğer cümle hatasızsa tebrik et ve alternatif daha doğal kullanımlar öner. "
+            "Eğer cümlede gramer veya kelime hatası varsa doğrusunu göster ve nedenini Türkçe olarak net açıkla. "
+            "Eğer cümle hatasızsa tebrik et ve alternatif kullanımlar öner. "
             f"Kullanıcının mesajı: {txt}"
         )
         try:
@@ -340,7 +354,6 @@ def handle_text_menu(message):
             bot.reply_to(message, f"AI yanıt verirken bir sorun oluştu: {e}")
         return
 
-    # Menü butonlarına basıldıysa AI modundan çık
     ai_chat_users.discard(uid)
 
     if txt == "📚 Kelime Çöz":
@@ -462,6 +475,10 @@ def send_placement_question(chat_id, user_id):
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callbacks(call):
+    if not is_authorized(call.from_user.id):
+        bot.answer_callback_query(call.id, "⛔ Yetkisiz erişim!", show_alert=True)
+        return
+
     bot.answer_callback_query(call.id)
     data = call.data
     uid = call.from_user.id
